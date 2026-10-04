@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Indian Business Cycle Predictor — v2</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{--bg:#0b1020;--card:#121a2d;--muted:#91a0bb;--text:#eef3ff;--line:#24314c;--accent:#69a7ff;--good:#42d392;--warn:#f4c95d;--bad:#ff6b7a}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#09101e,#0d1425);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:1180px;margin:auto;padding:22px}.top{display:flex;justify-content:space-between;gap:18px;align-items:center;flex-wrap:wrap}
+h1{margin:0;font-size:clamp(25px,4vw,42px)}h2{margin:0 0 12px;font-size:21px}.sub{color:var(--muted);margin-top:6px}
+button,.upload{border:1px solid #34507c;background:#162644;color:white;padding:11px 15px;border-radius:10px;font-weight:700;cursor:pointer}.upload{display:inline-block}
+input[type=file]{display:none}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}
+.card{background:rgba(18,26,45,.94);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 12px 35px rgba(0,0,0,.16)}
+.label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.big{font-size:30px;font-weight:800;margin-top:7px}.small{color:var(--muted);font-size:13px;margin-top:5px}
+.two{display:grid;grid-template-columns:1.5fr 1fr;gap:14px}.three{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px}
+canvas{max-height:340px}.pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#17243c;border:1px solid #2c4265;font-weight:800}
+.good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.score{font-size:52px;font-weight:900}.meter{height:10px;background:#202b40;border-radius:20px;overflow:hidden;margin:12px 0}.fill{height:100%;width:0;background:var(--accent)}
+.row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);gap:12px}.row:last-child{border:0}
+.note{color:var(--muted);font-size:13px;line-height:1.55}.status{margin:16px 0;padding:12px 14px;border-radius:10px;background:#111d33;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px;border-bottom:1px solid var(--line)}th{color:var(--muted)}
+@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.two,.three{grid-template-columns:1fr}}@media(max-width:520px){.grid{grid-template-columns:1fr}.wrap{padding:14px}.big{font-size:26px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>🇮🇳 Indian Business Cycle Predictor</h1>
+      <div class="sub">Economic cycle + fresher job-market timing dashboard</div>
+    </div>
+    <div>
+      <label class="upload">📁 Upload CSV<input id="file" type="file" accept=".csv,text/csv"></label>
+      <button id="demo">Load demo data</button>
+    </div>
+  </header>
+
+  <div id="status" class="status">Loading starter data…</div>
+
+  <section class="grid">
+    <div class="card"><div class="label">Business Cycle</div><div id="phase" class="big">—</div><div id="phaseConf" class="small">—</div></div>
+    <div class="card"><div class="label">BCI</div><div id="bci" class="big">—</div><div id="momentum" class="small">—</div></div>
+    <div class="card"><div class="label">Peak Probability</div><div id="peak" class="big">—</div><div class="small">Turning-point watch</div></div>
+    <div class="card"><div class="label">Trough Probability</div><div id="trough" class="big">—</div><div class="small">Turning-point watch</div></div>
+  </section>
+
+  <section class="two">
+    <div class="card"><h2>Business Cycle History</h2><canvas id="bciChart"></canvas></div>
+    <div class="card">
+      <h2>Fresher Employment Opportunity</h2>
+      <div id="feoi" class="score">—</div>
+      <div id="feoiLabel" class="pill">—</div>
+      <div class="meter"><div id="feoiFill" class="fill"></div></div>
+      <div id="entry" class="big" style="font-size:22px">—</div>
+      <div id="entryConf" class="small">—</div>
+      <p class="note">This is an analytical indicator, not a guarantee of hiring outcomes. It should combine labour-market conditions with sector demand and the user's skills.</p>
+    </div>
+  </section>
+
+  <section class="three">
+    <div class="card"><h2>Labour Market</h2><div id="labour"></div></div>
+    <div class="card"><h2>Entry Signal</h2><div id="signal"></div></div>
+    <div class="card"><h2>Data Coverage</h2><div id="coverage"></div></div>
+  </section>
+
+  <section class="card" style="margin-top:14px">
+    <h2>Latest Indicator Snapshot</h2>
+    <div style="overflow:auto"><table><thead><tr><th>Indicator</th><th>Latest value</th><th>Direction</th><th>Role</th></tr></thead><tbody id="table"></tbody></table></div>
+  </section>
+
+  <section class="card" style="margin-top:14px">
+    <h2>How the model works</h2>
+    <p class="note">The browser reads the CSV locally. It standardizes available economic indicators into directional scores, combines them into a Business Cycle Index (BCI), and separately combines labour-market indicators into a Fresher Employment Opportunity Index (FEOI). Missing columns are ignored and the score is reweighted across available data. The entry-window label is therefore a model signal, not a promise of a “perfect” job-market timing.</p>
+    <p class="note">For serious forecasting, use consistent frequency, definitions and revisions. In particular, PLFS methodology changed from January 2025, so pre-2025 and post-2025 labour indicators should not be blindly treated as one homogeneous monthly series.</p>
+  </section>
+</div>
+
+<script>
+const DEMO_CSV = `Date,GDP_Growth,IIP_Growth,Manufacturing_PMI,Services_PMI,Unemployment,Youth_Unemployment,LFPR,WPR,Fresher_Hiring_Growth,Credit_Growth,Investment_Growth,Exports_Growth,CPI
+2021-22,8.7,,,,4.2,,,,
+2022-23,7.0,,,,3.6,,,,
+2023-24,8.2,,,,3.2,,,,
+2024,,5.0,56.5,58.0,3.2,14.2,59.6,57.7,5.0,11.0,7.5,4.2,4.8
+2025-01,,,56.5,58.0,5.0,13.8,55.0,51.8,4.0,10.5,7.0,3.5,4.3
+2025-06,,,57.8,60.4,5.1,14.0,54.8,51.6,6.0,10.9,7.8,4.8,4.2
+2026-03,,,,,5.1,,55.4,52.6,7.0,,,,
+2026-04,,,,,4.9,,55.0,52.2,7.5,,,,
+2026-05,,,,,4.8,,54.4,51.4,8.0,,,,`;
+let rows=[]; let chart=null;
+
+const econ = [
+  ["GDP_Growth","GDP growth",1],["IIP_Growth","IIP growth",1],["Manufacturing_PMI","Manufacturing PMI",1],
+  ["Services_PMI","Services PMI",1],["Credit_Growth","Credit growth",1],["Investment_Growth","Investment growth",1],
+  ["Exports_Growth","Exports growth",1],["CPI","CPI",-.65]
+];
+const labour = [["Unemployment","Unemployment",-1],["Youth_Unemployment","Youth unemployment",-1],["LFPR","LFPR",1],["WPR","WPR",1],["Fresher_Hiring_Growth","Fresher hiring",1]];
+
+function parseCSV(txt){
+  const lines=txt.trim().split(/\r?\n/); if(lines.length<2) throw Error("CSV needs a header and at least one data row.");
+  const headers=lines[0].split(",").map(x=>x.trim());
+  return lines.slice(1).map(line=>{
+    const a=line.split(","); const o={}; headers.forEach((h,i)=>o[h]=(a[i]??"").trim()); return o;
+  }).filter(o=>o.Date);
+}
+function num(x){const n=Number(x);return Number.isFinite(n)?n:null}
+function latest(key){for(let i=rows.length-1;i>=0;i--){let n=num(rows[i][key]);if(n!==null)return n}return null}
+function series(key){return rows.map(r=>num(r[key]))}
+function normalize(v, arr, invert=false){
+  const a=arr.filter(x=>x!==null); if(!a.length||v===null)return null;
+  const lo=Math.min(...a), hi=Math.max(...a); if(hi===lo)return 50;
+  let s=(v-lo)/(hi-lo)*100; return invert?100-s:s;
+}
+function slope(key){
+  const a=series(key).filter(x=>x!==null); if(a.length<2)return null;
+  const n=Math.min(3,a.length), z=a.slice(-n); return z[z.length-1]-z[0];
+}
+function avg(xs){let a=xs.filter(x=>x!==null);return a.length?a.reduce((s,x)=>s+x,0)/a.length:null}
+function calculate(){
+  const bciVals=rows.map((r,i)=>{
+    const vals=econ.map(([k,,dir])=>{const v=num(r[k]); if(v===null)return null; return normalize(v,series(k),dir<0)});
+    return avg(vals);
+  });
+  const latestBCI=bciVals[bciVals.length-1]??50;
+  const prev=bciVals.slice(0,-1).filter(x=>x!==null).at(-1)??latestBCI;
+  const mom=latestBCI-prev;
+  let phase=latestBCI>=70?"Expansion":latestBCI>=55?"Peak":latestBCI>=35?"Contraction":latestBCI>=25?"Trough":"Depression";
+  const peak=Math.max(0,Math.min(100,50+Math.max(0,-mom)*12+(phase==="Peak"?20:0)));
+  const trough=Math.max(0,Math.min(100,50+Math.max(0,mom)*10+(phase==="Trough"?20:0)));
+  const lvals=labour.map(([k,,dir])=>{const v=latest(k);return v===null?null:normalize(v,series(k),dir<0)});
+  const feoi=avg(lvals)??latestBCI;
+  const hiring=slope("Fresher_Hiring_Growth"), ur=slope("Unemployment"), wpr=slope("WPR"), lfpr=slope("LFPR");
+  const trendScore=avg([
+    hiring===null?null:(hiring>0?65:35),
+    ur===null?null:(ur<0?65:35),
+    wpr===null?null:(wpr>0?65:35),
+    lfpr===null?null:(lfpr>0?65:35),
+    mom>0?65:mom<0?35:50
+  ])??50;
+  const opportunity=Math.round(feoi*.7+trendScore*.3);
+  let label=opportunity>=75?"Excellent":opportunity>=65?"Strong":opportunity>=50?"Moderate":opportunity>=35?"Difficult":"Very difficult";
+  let action=opportunity>=70&&mom>=0?"ENTER NOW / BUILD EXPERIENCE":opportunity>=55?"ENTER SELECTIVELY + UPSKILL":"UPSKILL + TARGET RESILIENT SECTORS";
+  let conf=Math.round(Math.min(95,45+Math.min(35,rows.length*2)+Math.abs(mom)*3));
+  const window=opportunity>=70?(mom>=0?"Favourable now; next 3–6 months":"Wait for confirmation; monitor next 1–3 months"):opportunity>=55?"Selective entry; reassess over 1–3 months":"Build skills and monitor for improvement";
+  render({latestBCI,mom,phase,peak,trough,opportunity,label,action,conf,window});
+}
+function render(x){
+  phase.textContent=x.phase; phaseConf.textContent=`Model confidence: ${x.conf}%`;
+  bci.textContent=x.latestBCI.toFixed(1); momentum.textContent=`Momentum: ${x.mom>=0?"+":""}${x.mom.toFixed(1)}`;
+  peak.textContent=Math.round(x.peak)+"%"; trough.textContent=Math.round(x.trough)+"%";
+  feoi.textContent=x.opportunity; feoiLabel.textContent=x.label;
+  feoiFill.style.width=x.opportunity+"%"; entry.textContent=x.window; entryConf.textContent=`Recommended action: ${x.action} · confidence ${x.conf}%`;
+  labour.innerHTML = [["Unemployment","Unemployment"],["Youth_Unemployment","Youth unemployment"],["LFPR","LFPR"],["WPR","WPR"],["Fresher_Hiring_Growth","Fresher hiring"]].map(([k,n])=>`<div class="row"><span>${n}</span><b>${latest(k)??"—"}${k==="LFPR"||k==="WPR"||k.includes("Unemployment")?"%":""}</b></div>`).join("");
+  signal.innerHTML=`<div class="row"><span>Cycle</span><b>${x.phase}</b></div><div class="row"><span>FEOI</span><b>${x.opportunity}/100</b></div><div class="row"><span>Action</span><b>${x.action}</b></div>`;
+  coverage.innerHTML=`<div class="row"><span>Rows</span><b>${rows.length}</b></div><div class="row"><span>Latest date</span><b>${rows.at(-1)?.Date||"—"}</b></div><div class="row"><span>Economic fields</span><b>${econ.filter(([k])=>latest(k)!==null).length}/${econ.length}</b></div><div class="row"><span>Labour fields</span><b>${labour.filter(([k])=>latest(k)!==null).length}/${labour.length}</b></div>`;
+  const keys=[...econ,...labour].filter((v,i,a)=>a.findIndex(z=>z[0]===v[0])===i);
+  table.innerHTML=keys.map(([k,n,dir])=>{const v=latest(k),s=slope(k);return `<tr><td>${n}</td><td>${v===null?"—":v}</td><td>${s===null?"—":(s>0?"↑ Improving":s<0?"↓ Weakening":"→ Flat")}</td><td>${dir>0?"Higher generally helps":"Lower generally helps"}</td></tr>`}).join("");
+  status.textContent="Loaded "+rows.length+" rows. CSV calculations run locally in your browser.";
+  draw();
+}
+function draw(){
+  const vals=rows.map(r=>avg(econ.map(([k,,dir])=>{const v=num(r[k]);return v===null?null:normalize(v,series(k),dir<0)})));
+  const labels=rows.map(r=>r.Date);
+  if(chart)chart.destroy();
+  chart=new Chart(document.getElementById("bciChart"),{type:"line",data:{labels,datasets:[{label:"BCI",data:vals,borderWidth:2,tension:.25,pointRadius:2}]},options:{responsive:true,scales:{y:{min:0,max:100}}}});
+}
+function load(text){try{rows=parseCSV(text);if(!rows.length)throw Error("No usable rows found.");calculate()}catch(e){status.textContent="CSV error: "+e.message}}
+file.addEventListener("change",e=>{const f=e.target.files[0];if(f){const r=new FileReader();r.onload=()=>load(r.result);r.readAsText(f)}});
+demo.addEventListener("click",()=>load(DEMO_CSV));
+load(DEMO_CSV);
+</script>
+</body>
+</html>

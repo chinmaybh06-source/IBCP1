@@ -10,7 +10,7 @@
   "theme_color": "#071D49",
   "icons": [
     {
-      "src": "./ca-can-code.png",
+      "src": "./ca_can_code_icon_512.png"
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"

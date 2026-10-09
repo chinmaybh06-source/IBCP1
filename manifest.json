@@ -1,0 +1,19 @@
+
+{
+  "name": "Indian Business Cycle Predictor",
+  "short_name": "CA's can code",
+  "description": "Indian Business Cycle Predictor — CA's can code",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#071D49",
+  "theme_color": "#071D49",
+  "icons": [
+    {
+      "src": "./ca-can-code.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
